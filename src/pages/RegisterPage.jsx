@@ -1,34 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
-import { Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from '@/context/AuthContext';
 import GoogleIcon from '@/components/icons/GoogleIcon';
 
 const RegisterPage = () => {
-  const { toast } = useToast();
+  const { toast } = useToast(); 
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+const [email, setEmail] = useState('');
+const [password, setPassword] = useState('');
+const navigate = useNavigate();
+
+ const { register, googleLogin } = useAuth();
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await register(email, password);
+
     toast({
-      title: "✅ Registration Submitted (Demo)",
-      description: "Registration functionality is for demonstration. In a real app, this would create a new user.",
-      duration: 5000,
+      title: "✅ Registration Successful",
+      description: "Redirecting to home...",
+      duration: 3000,
     });
-  };
 
-  const handleSocialLogin = (provider) => {
+    // ✅ Redirect to Home Page
+    setTimeout(() => {
+  navigate("/");
+}, 1000);
+
+  } catch (error) {
     toast({
-      title: `🚧 ${provider} Sign-up`,
-      description: `Social sign-up with ${provider}  `,
-      duration: 5000,
+      title: "❌ Registration Failed",
+      description: error.message,
+      duration: 3000,
     });
-  };
+  }
+};
+  
+const handleSocialLogin = async () => {
+  try {
+    await googleLogin();
 
+    toast({
+      title: "✅ Google Sign-up Successful",
+      description: "Redirecting...",
+      duration: 3000,
+    });
+
+    // ✅ Redirect here also
+    setTimeout(() => {
+  navigate("/");
+}, 1000);
+
+  } catch (error) {
+    toast({
+      title: "❌ Google Sign-up Failed",
+      description: error.message,
+      duration: 3000,
+    });
+  }
+};
   return (
     <>
       <Helmet>
@@ -82,6 +120,8 @@ const RegisterPage = () => {
                   <Mail className="h-5 w-5 text-gray-500" aria-hidden="true" />
                 </div>
                 <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                   id="email"
                   name="email"
                   type="email"
@@ -102,6 +142,8 @@ const RegisterPage = () => {
                     <Lock className="h-5 w-5 text-gray-500" aria-hidden="true" />
                   </div>
                 <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                   id="password"
                   name="password"
                   type="password"

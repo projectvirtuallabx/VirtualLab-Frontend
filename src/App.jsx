@@ -32,6 +32,7 @@ import ESP32ControlsPage from '@/pages/ESP32ControlsPage';
 
 import FrostLabPage from '@/pages/FrostLabPage'; 
 
+import ForgotPassword from '@/pages/ForgotPassword';
 
 
 
@@ -58,6 +59,8 @@ function App() {
           <Route path="/esp32-cam" element={<ESP32CAMPage />} />
           <Route path="/controls" element={<ESP32ControlsPage />} />
           <Route path="/frostlab" element={<FrostLabPage />} />
+
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route path="/book-slot" element={
             <ProtectedRoute>

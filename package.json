@@ -27,6 +27,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "firebase": "^12.11.0",
     "framer-motion": "^10.16.4",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",

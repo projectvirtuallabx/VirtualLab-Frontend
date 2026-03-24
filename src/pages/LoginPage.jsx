@@ -12,7 +12,7 @@ import GoogleIcon from '@/components/icons/GoogleIcon';
 
 const LoginPage = () => {
   const { toast } = useToast();
-  const { login } = useAuth();
+   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
@@ -20,25 +20,48 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await login(email, password);
+
     toast({
       title: "✅ Login Successful",
       description: "Welcome back! Redirecting you now...",
       duration: 3000,
     });
-    login({ email, name: email.split('@')[0] });
-    navigate('/frostlab', { replace: true });
-    //navigate(from, { replace: true });
-  };
-  
-  const handleSocialLogin = (provider) => {
+
+    //navigate('/frostlab', { replace: true });
+     navigate(from, { replace: true });
+  } catch (error) {
     toast({
-      title: `🚧 ${provider} Login `,
-      description: `Social login with ${provider} `,
-      duration: 5000,
+      title: "❌ Login Failed",
+      description: error.message,
+      duration: 3000,
     });
-  };
+  }
+};
+
+const handleSocialLogin = async () => {
+  try {
+    await googleLogin();
+
+    toast({
+      title: "✅ Google Login Successful",
+      description: "Redirecting...",
+      duration: 3000,
+    });
+
+    navigate('/frostlab', { replace: true });
+  } catch (error) {
+    toast({
+      title: "❌ Google Login Failed",
+      description: error.message,
+      duration: 3000,
+    });
+  }
+};
 
   return (
     <>
@@ -139,7 +162,7 @@ const LoginPage = () => {
           </div>
 
           <div>
-            <Button variant="outline" className="w-full border-gray-600 text-gray-300 hover:bg-gray-700" onClick={() => handleSocialLogin('Google')}>
+            <Button variant="outline" className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"  onClick={handleSocialLogin}>
               <GoogleIcon className="w-5 h-5 mr-2" /> Google
             </Button>
           </div>
