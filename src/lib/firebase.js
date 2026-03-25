@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBeF6hRSSDpxvlgTS2uFbFobMX6S4MZ__U",
   authDomain: "virtual-lab-1a214.firebaseapp.com",
