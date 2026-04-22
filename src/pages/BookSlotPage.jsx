@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const API_BASE = "https://vlab-backend-dl07.onrender.com";
+
 const BookSlotPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -48,27 +50,35 @@ const BookSlotPage = () => {
     window.scrollTo({ top: top - 100, behavior: 'smooth' });
   };
 
-  const fetchBookings = () => {
-    const storedBookings = JSON.parse(localStorage.getItem('virtualLabBookings')) || [];
-    const formattedEvents = storedBookings.map((booking) => {
-      const isOwnBooking = user && booking.userId === user.email;
-      return {
-        id: booking.id,
-        title: isOwnBooking
-          ? `${booking.labName} (My Booking)`
-          : `${booking.labName} (Booked)`,
-        start: booking.start,
-        end: booking.end,
-        allDay: false,
-        backgroundColor: isOwnBooking ? '#3b82f6' : '#ef4444',
-        borderColor: isOwnBooking ? '#2563eb' : '#dc2626',
-        extendedProps: {
-          userId: booking.userId,
-          labName: booking.labName,
-        },
-      };
-    });
-    setEvents(formattedEvents);
+  const fetchBookings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/bookings`, {
+        credentials: "include"
+      });
+
+      const data = await res.json();
+
+      const formattedEvents = data.bookings.map((booking) => {
+        const isOwnBooking = user && booking.userId === user.email;
+
+        return {
+          id: booking.id,
+          title: isOwnBooking
+            ? `${booking.labName} (My Booking)`
+            : `${booking.labName} (Booked)`,
+          start: booking.start,
+          end: booking.end,
+          allDay: false,
+          backgroundColor: isOwnBooking ? '#3b82f6' : '#ef4444',
+          borderColor: isOwnBooking ? '#2563eb' : '#dc2626',
+          extendedProps: booking,
+        };
+      });
+
+      setEvents(formattedEvents);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -79,8 +89,7 @@ const BookSlotPage = () => {
 
   const userBookings = useMemo(() => {
     if (!user) return [];
-    const storedBookings = JSON.parse(localStorage.getItem('virtualLabBookings')) || [];
-    return storedBookings.filter((booking) => booking.userId === user.email);
+    return events.filter((event) => event.extendedProps?.userId === user.email);
   }, [events, user]);
 
   const handleDateClick = (selectInfo) => {
@@ -118,22 +127,31 @@ const BookSlotPage = () => {
     }
   };
 
-  const handleDeleteBooking = () => {
+  const handleDeleteBooking = async () => {
     if (!bookingToDelete) return;
-    const storedBookings = JSON.parse(localStorage.getItem('virtualLabBookings')) || [];
-    const updatedBookings = storedBookings.filter((booking) => booking.id !== bookingToDelete.id);
-    localStorage.setItem('virtualLabBookings', JSON.stringify(updatedBookings));
-    fetchBookings();
-    setIsAlertOpen(false);
-    setBookingToDelete(null);
-    toast({
-      title: '✅ Booking Cancelled',
-      description: 'Your booking has been successfully removed.',
-    });
+
+    try {
+      await fetch(`${API_BASE}/bookings/${bookingToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      fetchBookings();
+      setIsAlertOpen(false);
+      setBookingToDelete(null);
+
+      toast({
+        title: '✅ Booking Cancelled',
+      });
+
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!selectedDateTime) {
       toast({
         variant: 'destructive',
@@ -143,45 +161,41 @@ const BookSlotPage = () => {
       return;
     }
 
-    const bookingStart = new Date(selectedDateTime.start);
-    const bookingEnd = new Date(bookingStart.getTime() + duration * 60 * 60 * 1000);
+    try {
+      const res = await fetch(`${API_BASE}/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          labName: labNameFromState,
+          start: selectedDateTime.start,
+          duration
+        })
+      });
 
-    const newBooking = {
-      id: Date.now().toString(),
-      title: `${labNameFromState} (My Booking)`,
-      labName: labNameFromState,
-      start: bookingStart.toISOString(),
-      end: bookingEnd.toISOString(),
-      duration,
-      userId: user.email,
-    };
+      if (!res.ok) throw new Error("Booking failed");
 
-    const storedBookings = JSON.parse(localStorage.getItem('virtualLabBookings')) || [];
-    const isOverlapping = storedBookings.some((b) => {
-      const start = new Date(b.start);
-      const end = new Date(b.end);
-      return bookingStart < end && bookingEnd > start;
-    });
+      fetchBookings();
 
-    if (isOverlapping) {
+      toast({
+        title: '🎉 Booking Confirmed',
+        description: `Lab: ${labNameFromState}`
+      });
+
+      setSelectedDay(null);
+      setSelectedTime(null);
+      setSelectedDateTime(null);
+
+    } catch (err) {
+      console.error(err);
       toast({
         variant: 'destructive',
-        title: 'Slot Unavailable',
-        description: 'Selected time overlaps with another booking.',
+        title: 'Error',
+        description: 'Booking failed'
       });
-      return;
     }
-
-    localStorage.setItem('virtualLabBookings', JSON.stringify([...storedBookings, newBooking]));
-    fetchBookings();
-    toast({
-      title: '🎉 Booking Confirmed',
-      description: `Lab: ${labNameFromState}, Start: ${bookingStart.toLocaleString()}`,
-    });
-
-    setSelectedDay(null);
-    setSelectedTime(null);
-    setSelectedDateTime(null);
   };
 
   return (
@@ -201,9 +215,14 @@ const BookSlotPage = () => {
             <Link to="/lab-access" className="text-blue-400 hover:text-blue-300 mb-4 flex items-center">
               <ChevronLeft className="w-5 h-5 mr-1" /> Back to Lab Selection
             </Link>
-            <Button variant="destructive" onClick={() => {
-              const stored = JSON.parse(localStorage.getItem('virtualLabBookings')) || [];
-              localStorage.setItem('virtualLabBookings', JSON.stringify(stored.filter(b => b.userId !== user.email)));
+            <Button variant="destructive" onClick={async () => {
+              const myBookings = events.filter(e => e.extendedProps?.userId === user.email);
+              await Promise.all(myBookings.map(b =>
+                fetch(`${API_BASE}/bookings/${b.id}`, {
+                  method: "DELETE",
+                  credentials: "include"
+                })
+              ));
               fetchBookings();
             }}>
               <Trash2 className="mr-2 w-4 h-4" /> Delete My Bookings ({userBookings.length})
@@ -236,24 +255,23 @@ const BookSlotPage = () => {
                       key={time}
                       disabled={isOverlapping}
                       onClick={() => {
-                                  const now = new Date();
-                                  const isToday = new Date(selectedDay).toDateString() === now.toDateString();
-                                  if (isToday && start < now) {
-                                    toast({
-                                      variant: 'destructive',
-                                      title: 'Invalid Time',
-                                      description: 'You cannot book a time slot in the past.',
-                                    });
-                                    return;
-                                  }
+                        const now = new Date();
+                        const isToday = new Date(selectedDay).toDateString() === now.toDateString();
+                        if (isToday && start < now) {
+                          toast({
+                            variant: 'destructive',
+                            title: 'Invalid Time',
+                            description: 'You cannot book a time slot in the past.',
+                          });
+                          return;
+                        }
 
-                                  setSelectedTime(time);
-                                  setSelectedDateTime({ start: start.toISOString(), end: end.toISOString() });
-                                  setTimeout(() => {
-                                    scrollToRef(confirmSectionRef);
-                                  }, 100);
-                                }}
-
+                        setSelectedTime(time);
+                        setSelectedDateTime({ start: start.toISOString(), end: end.toISOString() });
+                        setTimeout(() => {
+                          scrollToRef(confirmSectionRef);
+                        }, 100);
+                      }}
                       className={`text-white ${selectedTime === time ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
                     >
                       {time}
